@@ -3,91 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <title>Blender 3D 模型展示</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 优先使用稳定的 jsdelivr CDN，兼容 GitHub Pages -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; }
-        canvas { display: block; width: 100vw; height: 100vh; }
-        .loading {
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            overflow: hidden; 
+            background: #f0f0f0; 
+            font-family: Arial, sans-serif;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        /* 加载/错误提示样式 */
+        .status-panel {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: white;
-            font-size: 18px;
-            z-index: 999;
-            text-shadow: 0 0 5px #000;
+            padding: 20px 40px;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            font-size: 16px;
+            z-index: 9999;
+            text-align: center;
+        }
+        .error {
+            color: #ff4444;
+        }
+        .hidden {
+            display: none;
         }
     </style>
-    <!-- 修复：确保引入顺序正确，且使用兼容全局变量的 CDN 版本 -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
-    <div class="loading">模型加载中...</div>
+    <div id="canvas-container"></div>
+    <div id="status" class="status-panel">模型加载中...</div>
+
     <script>
-        // 修复：显式检查 THREE 全局对象是否存在
-        if (typeof THREE === 'undefined') {
-            alert('Three.js 加载失败，请检查网络或 CDN 链接');
+        // 全局状态管理
+        const statusPanel = document.getElementById('status');
+        let scene, camera, renderer, model;
+
+        // 初始化函数（封装核心逻辑）
+        function init() {
+            try {
+                // 1. 检查 Three.js 是否加载成功
+                if (typeof THREE === 'undefined') {
+                    throw new Error('Three.js 库加载失败，请检查网络或CDN链接');
+                }
+
+                // 2. 创建场景
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0xf0f0f0); // 背景色匹配页面
+
+                // 3. 创建相机
+                camera = new THREE.PerspectiveCamera(
+                    75, 
+                    window.innerWidth / window.innerHeight, 
+                    0.1, 
+                    1000
+                );
+                camera.position.z = 5;
+
+                // 4. 创建渲染器
+                renderer = new THREE.WebGLRenderer({ 
+                    antialias: true, 
+                    alpha: true 
+                });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.outputColorSpace = THREE.SRGBColorSpace;
+                document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+                // 5. 添加光源（适配 GitHub Pages 展示）
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(3, 3, 4);
+                scene.add(directionalLight);
+
+                // 6. 加载 GLB 模型（替换为你的模型路径）
+                loadModel('cube.glb'); // 若模型在子目录，写 './models/cube.glb'
+
+                // 7. 窗口自适应
+                window.addEventListener('resize', onWindowResize);
+
+                // 8. 启动动画循环
+                animate();
+
+            } catch (error) {
+                updateStatus(`初始化失败：${error.message}`, true);
+                console.error('初始化错误:', error);
+            }
         }
 
-        // 1. 初始化核心对象
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ 
-            antialias: true,
-            powerPreference: "high-performance"
-        });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.outputColorSpace = THREE.SRGBColorSpace;
-        document.body.appendChild(renderer.domElement);
+        // 模型加载函数
+        function loadModel(modelPath) {
+            const loader = new THREE.GLTFLoader();
+            
+            loader.load(
+                modelPath,
+                (gltf) => {
+                    model = gltf.scene;
+                    // 模型适配：居中 + 缩放（根据实际模型调整）
+                    model.position.set(0, 0, 0);
+                    model.scale.set(1, 1, 1);
+                    
+                    scene.add(model);
+                    updateStatus('模型加载完成！');
+                    setTimeout(() => {
+                        statusPanel.classList.add('hidden');
+                    }, 1500);
+                },
+                (xhr) => {
+                    const progress = (xhr.loaded / xhr.total * 100).toFixed(1);
+                    updateStatus(`加载中：${progress}%`);
+                },
+                (error) => {
+                    let errorMsg = '模型加载失败';
+                    if (error.message.includes('404')) {
+                        errorMsg = '模型文件不存在，请检查路径：' + modelPath;
+                    } else if (error.message.includes('CORS')) {
+                        errorMsg = '跨域错误，请确保模型文件和页面同域名';
+                    }
+                    updateStatus(errorMsg, true);
+                    console.error('模型加载错误:', error);
+                }
+            );
+        }
 
-        // 2. 光源设置
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(2, 2, 3);
-        scene.add(dirLight);
-        scene.add(new THREE.AmbientLight(0xffffff, 0.3));
-
-        // 3. 加载模型（修复：确保 GLTFLoader 正确实例化）
-        let model = null;
-        // 显式从 THREE 全局对象获取 GLTFLoader
-        const loader = new THREE.GLTFLoader();
-        
-        loader.load(
-            // ！！！请替换为你的 cube.glb 实际路径（本地需用 Live Server 运行）
-            'cube.glb',
-            (gltf) => {
-                model = gltf.scene;
-                scene.add(model);
-                model.position.set(0, 0, 0);
-                model.scale.set(1, 1, 1);
-                document.querySelector('.loading').style.display = 'none';
-            },
-            (xhr) => {
-                const progress = (xhr.loaded / xhr.total * 100).toFixed(1);
-                document.querySelector('.loading').textContent = `加载中：${progress}%`;
-            },
-            (err) => {
-                console.error('模型加载失败:', err);
-                document.querySelector('.loading').textContent = `加载失败：${err.message}`;
-            }
-        );
-
-        // 4. 相机和动画
-        camera.position.z = 5;
+        // 动画循环
         function animate() {
             requestAnimationFrame(animate);
+            
+            // 模型旋转动画
             if (model) {
-                model.rotation.y += 0.01;
+                model.rotation.y += 0.008; // 旋转速度适中
             }
+            
             renderer.render(scene, camera);
         }
-        animate();
 
-        // 5. 窗口适配
-        window.addEventListener('resize', () => {
+        // 窗口大小适配
+        function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        }
+
+        // 更新状态提示
+        function updateStatus(message, isError = false) {
+            statusPanel.textContent = message;
+            if (isError) {
+                statusPanel.classList.add('error');
+            } else {
+                statusPanel.classList.remove('error');
+            }
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('load', init);
     </script>
 </body>
 </html>
