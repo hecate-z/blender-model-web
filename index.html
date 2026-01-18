@@ -10,7 +10,7 @@
 </head>
 <body>
     <script type="module">
-        // 国内BootCDN稳定链接（适配国内网络）
+        // 使用国内稳定的 BootCDN 链接
         import * as THREE from 'https://cdn.bootcdn.net/ajax/libs/three.js/0.160.0/three.module.js';
         import { GLTFLoader } from 'https://cdn.bootcdn.net/ajax/libs/three.js/0.160.0/loaders/GLTFLoader.js';
 
@@ -27,7 +27,7 @@
         scene.add(dirLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
-        // 3. 加载模型（已匹配你的cube.glb）
+        // 3. 加载模型（已匹配你的 cube.glb）
         const loader = new GLTFLoader();
         loader.load(
             'cube.glb',
