@@ -6,7 +6,6 @@
     <style>
         body { margin: 0; padding: 0; overflow: hidden; }
         canvas { display: block; width: 100vw; height: 100vh; }
-        /* 加载提示样式 */
         .loading {
             position: fixed;
             top: 50%;
@@ -15,81 +14,75 @@
             color: white;
             font-size: 18px;
             z-index: 999;
+            text-shadow: 0 0 5px #000;
         }
     </style>
-    <!-- 引入 Three.js 核心和 GLTF 加载器（版本匹配） -->
-    <script src="https://cdn.bootcdn.net/ajax/libs/three.js/0.160.0/three.min.js"></script>
-    <script src="https://cdn.bootcdn.net/ajax/libs/three.js/0.160.0/loaders/GLTFLoader.js"></script>
+    <!-- 修复：确保引入顺序正确，且使用兼容全局变量的 CDN 版本 -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
     <div class="loading">模型加载中...</div>
     <script>
+        // 修复：显式检查 THREE 全局对象是否存在
+        if (typeof THREE === 'undefined') {
+            alert('Three.js 加载失败，请检查网络或 CDN 链接');
+        }
+
         // 1. 初始化核心对象
         const scene = new THREE.Scene();
-        // 相机参数优化：视角75，近裁切面0.1，远裁切面1000（适配大多数模型）
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        // 渲染器开启抗锯齿和颜色空间校正
         const renderer = new THREE.WebGLRenderer({ 
             antialias: true,
-            powerPreference: "high-performance" // 优先高性能渲染
+            powerPreference: "high-performance"
         });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.outputColorSpace = THREE.SRGBColorSpace; // 匹配 Blender 颜色空间
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
         document.body.appendChild(renderer.domElement);
 
-        // 2. 优化光源（强度更适中，位置适配模型中心）
+        // 2. 光源设置
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(2, 2, 3); // 降低光源高度，减少过亮
-        dirLight.castShadow = true; // 开启阴影（增强立体感）
+        dirLight.position.set(2, 2, 3);
         scene.add(dirLight);
-        // 环境光降低强度，保留模型细节
         scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 
-        // 3. 加载模型（重点：修改为你的模型实际路径）
-        const loader = new THREE.GLTFLoader();
-        // 定义模型对象，方便后续控制
+        // 3. 加载模型（修复：确保 GLTFLoader 正确实例化）
         let model = null;
+        // 显式从 THREE 全局对象获取 GLTFLoader
+        const loader = new THREE.GLTFLoader();
+        
         loader.load(
-            // ！！！关键：替换为你的 cube.glb 实际路径（本地/网络）
-            // 示例：本地同目录写 'cube.glb'，网络路径写 'https://xxx.com/cube.glb'
+            // ！！！请替换为你的 cube.glb 实际路径（本地需用 Live Server 运行）
             'cube.glb',
             (gltf) => {
                 model = gltf.scene;
                 scene.add(model);
-                
-                // 模型适配：居中 + 缩放（解决尺寸过大/过小问题）
-                model.position.set(0, 0, 0); // 模型居中
-                model.scale.set(1, 1, 1); // 可根据模型尺寸调整，比如 0.5 或 2
-                
-                // 隐藏加载提示
+                model.position.set(0, 0, 0);
+                model.scale.set(1, 1, 1);
                 document.querySelector('.loading').style.display = 'none';
             },
             (xhr) => {
-                // 加载进度提示
                 const progress = (xhr.loaded / xhr.total * 100).toFixed(1);
                 document.querySelector('.loading').textContent = `加载中：${progress}%`;
             },
             (err) => {
                 console.error('模型加载失败:', err);
-                document.querySelector('.loading').textContent = '模型加载失败，请检查路径';
+                document.querySelector('.loading').textContent = `加载失败：${err.message}`;
             }
         );
 
-        // 4. 相机位置（确保能看到模型）
+        // 4. 相机和动画
         camera.position.z = 5;
-
-        // 5. 动画循环（仅旋转模型，避免误操作其他对象）
         function animate() {
             requestAnimationFrame(animate);
-            // 仅当模型加载完成后才旋转
             if (model) {
-                model.rotation.y += 0.01; // 只旋转模型整体，更高效
+                model.rotation.y += 0.01;
             }
             renderer.render(scene, camera);
         }
         animate();
 
-        // 6. 窗口适配（修复原代码逻辑，增加防抖）
+        // 5. 窗口适配
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
