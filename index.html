@@ -10,39 +10,47 @@
 </head>
 <body>
     <script type="module">
-        import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-        import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+        // 国内BootCDN稳定链接（适配国内网络）
+        import * as THREE from 'https://cdn.bootcdn.net/ajax/libs/three.js/0.160.0/three.module.js';
+        import { GLTFLoader } from 'https://cdn.bootcdn.net/ajax/libs/three.js/0.160.0/loaders/GLTFLoader.js';
 
+        // 1. 创建场景、相机、渲染器
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
+        // 2. 添加光源（确保模型可见）
         const dirLight = new THREE.DirectionalLight(0xffffff, 1);
         dirLight.position.set(5, 5, 5);
         scene.add(dirLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
+        // 3. 加载模型（已匹配你的cube.glb）
         const loader = new GLTFLoader();
         loader.load(
-            'cube.glb', // 已匹配你的模型名
+            'cube.glb',
             (gltf) => {
                 scene.add(gltf.scene);
-                gltf.scene.position.set(0, 0, 0);
+                gltf.scene.position.set(0, 0, 0); // 模型居中
             },
             (xhr) => console.log(`${(xhr.loaded / xhr.total * 100).toFixed(1)}% 加载中`),
             (err) => console.error('模型加载失败:', err)
         );
 
+        // 4. 相机位置与模型旋转动画
         camera.position.z = 5;
         function animate() {
             requestAnimationFrame(animate);
-            scene.traverse(obj => { if (obj.isMesh) obj.rotation.y += 0.01; });
+            scene.traverse(obj => { 
+                if (obj.isMesh) obj.rotation.y += 0.01; // 模型绕Y轴旋转
+            });
             renderer.render(scene, camera);
         }
         animate();
 
+        // 5. 窗口大小适配
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
