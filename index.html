@@ -7,13 +7,12 @@
         body { margin: 0; padding: 0; overflow: hidden; }
         canvas { display: block; width: 100vw; height: 100vh; }
     </style>
+    <!-- 直接引入 Three.js 和 GLTFLoader -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/three.js/0.160.0/loaders/GLTFLoader.js"></script>
 </head>
 <body>
-    <script type="module">
-        // 使用国内稳定的 BootCDN 链接
-        import * as THREE from 'https://cdn.bootcdn.net/ajax/libs/three.js/0.160.0/three.module.js';
-        import { GLTFLoader } from 'https://cdn.bootcdn.net/ajax/libs/three.js/0.160.0/loaders/GLTFLoader.js';
-
+    <script>
         // 1. 创建场景、相机、渲染器
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -21,36 +20,36 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // 2. 添加光源（确保模型可见）
+        // 2. 添加光源
         const dirLight = new THREE.DirectionalLight(0xffffff, 1);
         dirLight.position.set(5, 5, 5);
         scene.add(dirLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
         // 3. 加载模型（已匹配你的 cube.glb）
-        const loader = new GLTFLoader();
+        const loader = new THREE.GLTFLoader();
         loader.load(
             'cube.glb',
             (gltf) => {
                 scene.add(gltf.scene);
-                gltf.scene.position.set(0, 0, 0); // 模型居中
+                gltf.scene.position.set(0, 0, 0);
             },
             (xhr) => console.log(`${(xhr.loaded / xhr.total * 100).toFixed(1)}% 加载中`),
             (err) => console.error('模型加载失败:', err)
         );
 
-        // 4. 相机位置与模型旋转动画
+        // 4. 相机位置与旋转动画
         camera.position.z = 5;
         function animate() {
             requestAnimationFrame(animate);
             scene.traverse(obj => { 
-                if (obj.isMesh) obj.rotation.y += 0.01; // 模型绕Y轴旋转
+                if (obj.isMesh) obj.rotation.y += 0.01;
             });
             renderer.render(scene, camera);
         }
         animate();
 
-        // 5. 窗口大小适配
+        // 5. 窗口适配
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -59,4 +58,3 @@
     </script>
 </body>
 </html>
-
